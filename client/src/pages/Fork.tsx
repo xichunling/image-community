@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { worksApi } from '../api'
+import { worksApi, uploadApi } from '../api'
 import type { WorkDetail as WorkDetailType, PageInput } from '../types'
 import BackHeader from '../components/BackHeader'
 import PagesEditor from '../components/PagesEditor'
@@ -32,6 +32,14 @@ export default function Fork() {
       pages,
     })
     navigate(`/work/${result.id}`)
+  }
+
+  const handleUpload = async (index: number, file: File): Promise<string> => {
+    const result = await uploadApi.image(file)
+    const updated = [...pages]
+    updated[index] = { ...updated[index]!, image_url: result.url }
+    setPages(updated)
+    return result.url
   }
 
   if (!parentWork) return <div className="p-4 text-text-secondary">加载中...</div>
@@ -68,7 +76,7 @@ export default function Fork() {
           />
         </div>
 
-        <PagesEditor pages={pages} onChange={setPages} />
+        <PagesEditor pages={pages} onChange={setPages} showUpload onUploadPage={handleUpload} />
 
         <button
           onClick={submit}

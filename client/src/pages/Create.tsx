@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { worksApi, aiApi } from '../api'
+import { worksApi, aiApi, uploadApi } from '../api'
 import type { PageInput, TextProviderInfo, ImageProviderInfo } from '../types'
 import PagesEditor from '../components/PagesEditor'
 
@@ -56,6 +56,14 @@ export default function Create() {
     if (!pages[0]?.description.trim()) return alert('请至少填写第一页场景描述')
     await worksApi.create({ title: title.trim(), description: desc.trim(), type, pages })
     navigate('/')
+  }
+
+  const handleUpload = async (index: number, file: File): Promise<string> => {
+    const result = await uploadApi.image(file)
+    const updated = [...pages]
+    updated[index] = { ...updated[index]!, image_url: result.url }
+    setPages(updated)
+    return result.url
   }
 
   const submitAI = async () => {
@@ -174,7 +182,7 @@ export default function Create() {
                 <option value="drama">短剧</option>
               </select>
             </div>
-            <PagesEditor pages={pages} onChange={setPages} showUpload />
+            <PagesEditor pages={pages} onChange={setPages} showUpload onUploadPage={handleUpload} />
             <button onClick={submitManual} className="w-full py-3 bg-primary rounded-lg text-sm text-white font-medium hover:bg-primary-light transition-colors">发布作品</button>
           </>
         ) : aiGenerating ? (

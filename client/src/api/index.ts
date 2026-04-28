@@ -96,3 +96,28 @@ export const aiApi = {
   generatePage: (data: { provider: string; style: string; type: string; imagePrompt: string; dialogue: string }) =>
     request<{ image_url: string; ai_generated: boolean }>('/ai/generate-page', { method: 'POST', body: JSON.stringify(data) }),
 }
+
+export const uploadApi = {
+  image: async (file: File): Promise<{ url: string }> => {
+    const formData = new FormData()
+    formData.append('image', file)
+    const headers: Record<string, string> = {}
+    const token = getToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+    const res = await fetch(`${API}/upload/image`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    })
+    if (res.status === 401) {
+      localStorage.removeItem('token')
+      window.location.hash = '#/login'
+      throw new Error('登录已过期')
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: '上传失败' }))
+      throw new Error(err.error)
+    }
+    return res.json()
+  },
+}

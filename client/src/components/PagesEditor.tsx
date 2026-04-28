@@ -1,15 +1,18 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { PageInput } from '../types'
 
 interface PagesEditorProps {
   pages: PageInput[]
   onChange: (pages: PageInput[]) => void
   showUpload?: boolean
+  onUploadPage?: (index: number, file: File) => Promise<string>
   onRegeneratePage?: (index: number) => void
 }
 
-export default function PagesEditor({ pages, onChange, showUpload = false, onRegeneratePage }: PagesEditorProps) {
+export default function PagesEditor({ pages, onChange, showUpload = false, onUploadPage, onRegeneratePage }: PagesEditorProps) {
   const [regeneratingIdx, setRegeneratingIdx] = useState<number | null>(null)
+  const [uploadingIdx, setUploadingIdx] = useState<number | null>(null)
+  const fileInputs = useRef<Record<number, HTMLInputElement | null>>({})
 
   const addPage = () => {
     onChange([...pages, { description: '', dialogue: '' }])
@@ -37,6 +40,23 @@ export default function PagesEditor({ pages, onChange, showUpload = false, onReg
     }
   }
 
+  const handleFileChange = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !onUploadPage) return
+    setUploadingIdx(index)
+    try {
+      const url = await onUploadPage(index, file)
+      const updated = [...pages]
+      updated[index] = { ...updated[index]!, image_url: url }
+      onChange(updated)
+    } catch (err: any) {
+      alert(err.message || '上传失败')
+    } finally {
+      setUploadingIdx(null)
+      e.target.value = ''
+    }
+  }
+
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-semibold">分镜编辑</h3>
@@ -61,16 +81,49 @@ export default function PagesEditor({ pages, onChange, showUpload = false, onReg
               )}
             </div>
           </div>
-          {page.image_url && (
-            <div className="rounded-lg overflow-hidden border border-border">
+
+          {/* 图片区域 */}
+          {page.image_url ? (
+            <div className="relative rounded-lg overflow-hidden border border-border group">
               <img src={page.image_url} alt={`第${i + 1}页`} className="w-full object-cover" />
+              {showUpload && onUploadPage && (
+                <button
+                  onClick={() => fileInputs.current[i]?.click()}
+                  disabled={uploadingIdx === i}
+                  className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-sm disabled:opacity-100"
+                >
+                  {uploadingIdx === i ? (
+                    <span className="animate-spin">⟳ 上传中...</span>
+                  ) : '更换图片'}
+                </button>
+              )}
             </div>
+          ) : showUpload && onUploadPage ? (
+            uploadingIdx === i ? (
+              <div className="border border-primary bg-primary/5 rounded-lg py-6 text-center text-xs text-primary">
+                <span className="animate-spin">⟳</span> 上传中...
+              </div>
+            ) : (
+              <div
+                onClick={() => fileInputs.current[i]?.click()}
+                className="border border-dashed border-border rounded-lg py-6 text-center text-xs text-text-secondary cursor-pointer hover:border-primary hover:text-primary transition-colors"
+              >
+                点击上传图片
+              </div>
+            )
+          ) : null}
+
+          {/* 隐藏的 file input */}
+          {showUpload && onUploadPage && (
+            <input
+              ref={(el) => { fileInputs.current[i] = el }}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleFileChange(i, e)}
+            />
           )}
-          {showUpload && (
-            <div className="border border-dashed border-border rounded-lg py-6 text-center text-xs text-text-secondary cursor-pointer hover:border-primary">
-              点击上传图片
-            </div>
-          )}
+
           <input
             className="w-full bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text placeholder:text-text-secondary focus:outline-none focus:border-primary"
             placeholder="场景描述"

@@ -5,6 +5,7 @@ import path from 'path'
 import routes from './routes'
 import authRoutes from './authRoutes'
 import aiRoutes from './aiRoutes'
+import uploadRoutes from './uploadRoutes'
 import { optionalAuth } from './auth'
 import seedData from './seed'
 
@@ -26,6 +27,9 @@ app.use('/api', routes)
 
 // AI 路由
 app.use('/api/ai', aiRoutes)
+
+// 上传路由
+app.use('/api/upload', uploadRoutes)
 
 seedData()
 
