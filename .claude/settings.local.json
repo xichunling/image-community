@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3:*)",
+      "WebSearch",
+      "mcp__tavily-mcp__tavily_extract",
+      "mcp__tavily-mcp__tavily_search"
+    ]
+  }
+}

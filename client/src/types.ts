@@ -125,5 +125,50 @@ export interface TreeNode {
 export interface PageInput {
   description: string
   dialogue: string
+  image_url?: string
+  imagePrompt?: string
   ai_generated?: boolean
+}
+
+// ===== AI Provider Types =====
+
+export interface TextProviderInfo {
+  id: string
+  name: string
+  icon: string
+  type: 'text'
+  models: { id: string; name: string }[]
+  enabled: boolean
+}
+
+export interface ImageProviderInfo {
+  id: string
+  name: string
+  icon: string
+  type: 'image'
+  models: { id: string; name: string }[]
+  enabled: boolean
+}
+
+export interface AIGenerateRequest {
+  synopsis: string
+  style: string
+  type: 'comic' | 'drama'
+  pageCount: number
+  textProvider: string
+  imageProvider: string
+}
+
+export interface AIGeneratePage {
+  pageNumber: number
+  description: string
+  dialogue: string
+  image_url?: string
+  ai_generated: boolean
+}
+
+export interface AIGenerateResult {
+  title: string
+  description: string
+  pages: AIGeneratePage[]
 }

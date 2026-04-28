@@ -1,8 +1,10 @@
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import path from 'path'
 import routes from './routes'
 import authRoutes from './authRoutes'
+import aiRoutes from './aiRoutes'
 import { optionalAuth } from './auth'
 import seedData from './seed'
 
@@ -21,6 +23,9 @@ app.use('/api/auth', authRoutes)
 
 // 业务路由
 app.use('/api', routes)
+
+// AI 路由
+app.use('/api/ai', aiRoutes)
 
 seedData()
 

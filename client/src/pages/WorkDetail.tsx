@@ -84,9 +84,15 @@ export default function WorkDetail() {
           <div className="space-y-3">
             {pages.map((page) => (
               <div key={page.id} className="bg-bg-card rounded-xl overflow-hidden">
-                <div className="bg-gradient-to-br from-bg-secondary to-bg-card p-4 min-h-[80px] flex items-center text-sm">
-                  {page.description}
-                </div>
+                {page.image_url ? (
+                  <div className="relative">
+                    <img src={page.image_url} alt={`第${page.page_number}页`} className="w-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="bg-gradient-to-br from-bg-secondary to-bg-card p-4 min-h-[80px] flex items-center text-sm">
+                    {page.description}
+                  </div>
+                )}
                 <div className="px-4 py-2">
                   <div className="text-[10px] text-text-secondary">第{page.page_number}页</div>
                   {page.dialogue && (

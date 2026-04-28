@@ -87,3 +87,12 @@ export const conversationsApi = {
   sendMessage: (convId: number, data: { content: string; msg_type?: string }) =>
     request<{ message: string }>(`/conversations/${convId}/messages`, { method: 'POST', body: JSON.stringify(data) }),
 }
+
+export const aiApi = {
+  getProviders: () =>
+    request<{ textProviders: import('../types').TextProviderInfo[]; imageProviders: import('../types').ImageProviderInfo[] }>('/ai/providers'),
+  generate: (data: import('../types').AIGenerateRequest) =>
+    request<import('../types').AIGenerateResult>('/ai/generate', { method: 'POST', body: JSON.stringify(data) }),
+  generatePage: (data: { provider: string; style: string; type: string; imagePrompt: string; dialogue: string }) =>
+    request<{ image_url: string; ai_generated: boolean }>('/ai/generate-page', { method: 'POST', body: JSON.stringify(data) }),
+}

@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { worksApi } from '../api'
-import type { PageInput } from '../types'
+import { worksApi, aiApi } from '../api'
+import type { PageInput, TextProviderInfo, ImageProviderInfo } from '../types'
 import PagesEditor from '../components/PagesEditor'
 
 const styles = [
@@ -11,21 +11,6 @@ const styles = [
   { value: 'ink', icon: '🖌️', name: '水墨' },
   { value: 'comic', icon: '💥', name: '美漫' },
   { value: 'anime', icon: '✨', name: '日漫' },
-]
-
-const mockTemplates = [
-  { desc: '开篇：故事的世界观展开，一个广阔的场景呈现在眼前', dial: '' },
-  { desc: '主角登场，在日常场景中展现性格特点', dial: '又是普通的一天...' },
-  { desc: '转折出现，一个意外事件打破了平静', dial: '这是怎么回事？！' },
-  { desc: '主角面临选择，气氛变得紧张', dial: '我必须做出决定' },
-  { desc: '冲突升级，主角遭遇强大的阻碍', dial: '没想到事情会变成这样...' },
-  { desc: '关键时刻，主角获得了新的力量或帮助', dial: '原来如此！我明白了' },
-  { desc: '高潮场景，主角与对手正面交锋', dial: '这次，我不会退缩！' },
-  { desc: '战斗进入白热化，画面充满张力', dial: '' },
-  { desc: '转机出现，意想不到的发展', dial: '不可能...这竟然是...' },
-  { desc: '故事迎来阶段性结局，留下悬念', dial: '故事才刚刚开始...' },
-  { desc: '尾声：一个新的谜团浮出水面', dial: '' },
-  { desc: '彩蛋：暗示下一章的关键线索', dial: '你终于来了...' },
 ]
 
 export default function Create() {
@@ -45,7 +30,26 @@ export default function Create() {
   const [aiPageCount, setAiPageCount] = useState(4)
   const [aiGenerating, setAiGenerating] = useState(false)
   const [aiStep, setAiStep] = useState(0)
+  const [aiError, setAiError] = useState('')
   const [aiResult, setAiResult] = useState<{ title: string; desc: string; pages: PageInput[] } | null>(null)
+
+  // Provider state
+  const [textProviders, setTextProviders] = useState<TextProviderInfo[]>([])
+  const [imageProviders, setImageProviders] = useState<ImageProviderInfo[]>([])
+  const [selectedTextProvider, setSelectedTextProvider] = useState('')
+  const [selectedImageProvider, setSelectedImageProvider] = useState('')
+
+  useEffect(() => {
+    aiApi.getProviders().then((res) => {
+      setTextProviders(res.textProviders)
+      setImageProviders(res.imageProviders)
+      // 默认选中第一个非 mock provider，否则选 mock
+      const firstText = res.textProviders.find(p => p.id !== 'mock-text') || res.textProviders[0]
+      const firstImage = res.imageProviders.find(p => p.id !== 'mock-image') || res.imageProviders[0]
+      if (firstText) setSelectedTextProvider(firstText.id)
+      if (firstImage) setSelectedImageProvider(firstImage.id)
+    }).catch(() => {})
+  }, [])
 
   const submitManual = async () => {
     if (!title.trim()) return alert('请输入标题')
@@ -56,23 +60,61 @@ export default function Create() {
 
   const submitAI = async () => {
     if (!synopsis.trim()) return alert('请输入作品梗概')
+    if (!selectedTextProvider || !selectedImageProvider) return alert('请选择生成服务')
     setAiGenerating(true)
     setAiStep(1)
-    await new Promise((r) => setTimeout(r, 1200))
-    setAiStep(2)
-    await new Promise((r) => setTimeout(r, 1500))
-    setAiStep(3)
-    await new Promise((r) => setTimeout(r, 2000))
-    setAiStep(4)
+    setAiError('')
 
-    const mockTitle = synopsis.substring(0, 15) + (synopsis.length > 15 ? '...' : '')
-    const mockPages: PageInput[] = Array.from({ length: aiPageCount }, (_, i) => {
-      const t = mockTemplates[i % mockTemplates.length]!
-      return { description: t.desc, dialogue: t.dial, ai_generated: true }
-    })
+    try {
+      // Step 1: 正在生成分镜脚本
+      setAiStep(2)
 
-    setAiResult({ title: mockTitle, desc: synopsis, pages: mockPages })
-    setAiGenerating(false)
+      const result = await aiApi.generate({
+        synopsis: synopsis.trim(),
+        style: aiStyle,
+        type: aiType,
+        pageCount: aiPageCount,
+        textProvider: selectedTextProvider,
+        imageProvider: selectedImageProvider,
+      })
+
+      setAiStep(3)
+      setAiResult({
+        title: result.title,
+        desc: result.description,
+        pages: result.pages.map((p) => ({
+          description: p.description,
+          dialogue: p.dialogue,
+          image_url: p.image_url,
+          ai_generated: true,
+        })),
+      })
+    } catch (err: any) {
+      setAiError(err.message || 'AI 生成失败，请重试')
+    } finally {
+      setAiGenerating(false)
+    }
+  }
+
+  const regeneratePage = async (index: number) => {
+    if (!aiResult) return
+    const page = aiResult.pages[index]
+    if (!page) return
+
+    try {
+      const result = await aiApi.generatePage({
+        provider: selectedImageProvider,
+        style: aiStyle,
+        type: aiType,
+        imagePrompt: page.description,
+        dialogue: page.dialogue,
+      })
+      const updated = [...aiResult.pages]
+      updated[index] = { ...updated[index]!, image_url: result.image_url }
+      setAiResult({ ...aiResult, pages: updated })
+    } catch (err: any) {
+      alert(err.message || '重新生成失败')
+    }
   }
 
   const publishAI = async () => {
@@ -137,12 +179,13 @@ export default function Create() {
           </>
         ) : aiGenerating ? (
           <div className="space-y-4 py-8">
-            {['正在分析故事梗概...', '正在生成故事大纲和分镜脚本...', `正在生成${aiPageCount}页分镜画面...`].map((text, i) => (
-              <div key={i} className={`flex items-center gap-3 ${aiStep > i ? 'text-success' : aiStep === i ? 'text-accent' : 'text-text-secondary'}`}>
-                {aiStep > i ? '✓' : aiStep === i ? <span className="animate-spin">⟳</span> : '○'}
+            {['正在分析故事梗概...', '正在生成分镜脚本并生成图片...', 'AI 生成完成'].map((text, i) => (
+              <div key={i} className={`flex items-center gap-3 ${aiStep > i + 1 ? 'text-success' : aiStep === i + 1 ? 'text-accent' : 'text-text-secondary'}`}>
+                {aiStep > i + 1 ? '✓' : aiStep === i + 1 ? <span className="animate-spin">⟳</span> : '○'}
                 <span className="text-sm">{text}</span>
               </div>
             ))}
+            {aiError && <div className="text-sm text-accent-pink mt-2">{aiError}</div>}
           </div>
         ) : aiResult ? (
           <div className="space-y-4">
@@ -155,7 +198,7 @@ export default function Create() {
               <label className="text-xs text-text-secondary">作品简介（可修改）</label>
               <textarea className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary resize-none" rows={3} value={aiResult.desc} onChange={(e) => setAiResult({ ...aiResult, desc: e.target.value })} />
             </div>
-            <PagesEditor pages={aiResult.pages} onChange={(p) => setAiResult({ ...aiResult, pages: p })} />
+            <PagesEditor pages={aiResult.pages} onChange={(p) => setAiResult({ ...aiResult, pages: p })} onRegeneratePage={regeneratePage} />
             <div className="flex gap-2">
               <button onClick={() => { setAiResult(null); submitAI() }} className="flex-1 py-2.5 bg-bg-card border border-border rounded-lg text-sm hover:border-primary transition-colors">重新生成</button>
               <button onClick={publishAI} className="flex-[2] py-2.5 bg-primary rounded-lg text-sm text-white font-medium hover:bg-primary-light transition-colors">确认发布</button>
@@ -163,6 +206,42 @@ export default function Create() {
           </div>
         ) : (
           <>
+            {/* Provider 选择 */}
+            <div>
+              <label className="text-xs text-text-secondary">文字生成服务（LLM 分镜）</label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {textProviders.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedTextProvider(p.id)}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs transition-colors ${
+                      selectedTextProvider === p.id ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'
+                    }`}
+                  >
+                    <span className="text-lg">{p.icon}</span>
+                    <span>{p.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-text-secondary">图片生成服务（文生图）</label>
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                {imageProviders.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedImageProvider(p.id)}
+                    className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs transition-colors ${
+                      selectedImageProvider === p.id ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'
+                    }`}
+                  >
+                    <span className="text-lg">{p.icon}</span>
+                    <span>{p.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div>
               <label className="text-xs text-text-secondary">作品类型</label>
               <select className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary" value={aiType} onChange={(e) => setAiType(e.target.value as 'comic' | 'drama')}>
