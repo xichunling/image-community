@@ -27,7 +27,7 @@ db.exec(`
     title TEXT NOT NULL,
     description TEXT DEFAULT '',
     cover_image TEXT DEFAULT '',
-    type TEXT CHECK(type IN ('comic', 'drama')) NOT NULL DEFAULT 'comic',
+    type TEXT CHECK(type IN ('comic', 'drama', 'novel')) NOT NULL DEFAULT 'comic',
     creator_id INTEGER NOT NULL,
     parent_work_id INTEGER DEFAULT NULL,
     root_work_id INTEGER DEFAULT NULL,
@@ -121,6 +121,79 @@ db.exec(`
     FOREIGN KEY (sender_id) REFERENCES users(id)
   );
 `)
+
+// 用户 AI 配置表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_ai_configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL UNIQUE,
+    text_base_url TEXT DEFAULT '',
+    text_api_key TEXT DEFAULT '',
+    text_model TEXT DEFAULT '',
+    image_base_url TEXT DEFAULT '',
+    image_api_key TEXT DEFAULT '',
+    image_model TEXT DEFAULT '',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  -- 签到表
+  CREATE TABLE IF NOT EXISTS check_ins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    check_date TEXT NOT NULL,
+    streak INTEGER DEFAULT 1,
+    credits_earned INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+`)
+
+// AI 生成任务表
+db.exec(`
+  CREATE TABLE IF NOT EXISTS generation_tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    status TEXT CHECK(status IN ('generating','completed','failed')) NOT NULL DEFAULT 'generating',
+    type TEXT NOT NULL DEFAULT 'comic',
+    input_params TEXT NOT NULL,
+    result TEXT,
+    error TEXT,
+    credits_used INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  -- 积分流水表
+  CREATE TABLE IF NOT EXISTS credit_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    amount INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    description TEXT DEFAULT '',
+    task_id INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  -- 关注表
+  CREATE TABLE IF NOT EXISTS follows (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    follower_id INTEGER NOT NULL,
+    following_id INTEGER NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (follower_id) REFERENCES users(id),
+    FOREIGN KEY (following_id) REFERENCES users(id),
+    UNIQUE(follower_id, following_id)
+  );
+`)
+
+// 迁移：users 表加 credits 字段
+const creditsCol = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).find(c => c.name === 'credits')
+if (!creditsCol) {
+  db.exec("ALTER TABLE users ADD COLUMN credits INTEGER DEFAULT 1000")
+}
 
 // 迁移：为已有数据库添加 username/password_hash 列
 const userColumns = db.prepare("PRAGMA table_info(users)").all() as { name: string }[]

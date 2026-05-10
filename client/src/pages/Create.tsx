@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { worksApi, aiApi, uploadApi } from '../api'
+import { worksApi, aiApi, uploadApi, creditsApi } from '../api'
 import type { PageInput, TextProviderInfo, ImageProviderInfo } from '../types'
 import PagesEditor from '../components/PagesEditor'
 
@@ -20,11 +20,11 @@ export default function Create() {
   // Manual fields
   const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
-  const [type, setType] = useState<'comic' | 'drama'>('comic')
+  const [type, setType] = useState<'comic' | 'drama' | 'novel'>('comic')
   const [pages, setPages] = useState<PageInput[]>([{ description: '', dialogue: '' }])
 
   // AI fields
-  const [aiType, setAiType] = useState<'comic' | 'drama'>('comic')
+  const [aiType, setAiType] = useState<'comic' | 'drama' | 'novel'>('comic')
   const [synopsis, setSynopsis] = useState('')
   const [aiStyle, setAiStyle] = useState('cyberpunk')
   const [aiPageCount, setAiPageCount] = useState(4)
@@ -33,23 +33,70 @@ export default function Create() {
   const [aiError, setAiError] = useState('')
   const [aiResult, setAiResult] = useState<{ title: string; desc: string; pages: PageInput[] } | null>(null)
 
-  // Provider state
+  // AI 来源选择
+  const [aiSource, setAiSource] = useState<'platform' | 'custom'>('platform')
+
+  // Provider state (平台模式)
   const [textProviders, setTextProviders] = useState<TextProviderInfo[]>([])
   const [imageProviders, setImageProviders] = useState<ImageProviderInfo[]>([])
   const [selectedTextProvider, setSelectedTextProvider] = useState('')
   const [selectedImageProvider, setSelectedImageProvider] = useState('')
 
+  // 自定义配置
+  const [customTextBaseUrl, setCustomTextBaseUrl] = useState('')
+  const [customTextApiKey, setCustomTextApiKey] = useState('')
+  const [customTextModel, setCustomTextModel] = useState('')
+  const [customImageBaseUrl, setCustomImageBaseUrl] = useState('')
+  const [customImageApiKey, setCustomImageApiKey] = useState('')
+  const [customImageModel, setCustomImageModel] = useState('')
+  const [configSaving, setConfigSaving] = useState(false)
+
+  // 积分
+  const [credits, setCredits] = useState<number | null>(null)
+
   useEffect(() => {
+    // 加载平台 provider
     aiApi.getProviders().then((res) => {
-      setTextProviders(res.textProviders)
-      setImageProviders(res.imageProviders)
-      // 默认选中第一个非 mock provider，否则选 mock
-      const firstText = res.textProviders.find(p => p.id !== 'mock-text') || res.textProviders[0]
-      const firstImage = res.imageProviders.find(p => p.id !== 'mock-image') || res.imageProviders[0]
-      if (firstText) setSelectedTextProvider(firstText.id)
-      if (firstImage) setSelectedImageProvider(firstImage.id)
+      const realText = res.textProviders.filter(p => p.id !== 'mock-text')
+      const realImage = res.imageProviders.filter(p => p.id !== 'mock-image')
+      setTextProviders(realText)
+      setImageProviders(realImage)
+      if (realText[0]) setSelectedTextProvider(realText[0].id)
+      if (realImage[0]) setSelectedImageProvider(realImage[0].id)
+    }).catch(() => {})
+
+    // 加载积分
+    creditsApi.status().then(s => setCredits(s.credits)).catch(() => {})
+
+    // 加载用户自定义配置
+    aiApi.getConfig().then(c => {
+      if (c.text_base_url) setCustomTextBaseUrl(c.text_base_url)
+      if (c.text_api_key) setCustomTextApiKey(c.text_api_key)
+      if (c.text_model) setCustomTextModel(c.text_model)
+      if (c.image_base_url) setCustomImageBaseUrl(c.image_base_url)
+      if (c.image_api_key) setCustomImageApiKey(c.image_api_key)
+      if (c.image_model) setCustomImageModel(c.image_model)
     }).catch(() => {})
   }, [])
+
+  const saveCustomConfig = async () => {
+    setConfigSaving(true)
+    try {
+      await aiApi.saveConfig({
+        text_base_url: customTextBaseUrl,
+        text_api_key: customTextApiKey,
+        text_model: customTextModel,
+        image_base_url: customImageBaseUrl,
+        image_api_key: customImageApiKey,
+        image_model: customImageModel,
+      })
+      alert('配置已保存')
+    } catch (err: any) {
+      alert(err.message || '保存失败')
+    } finally {
+      setConfigSaving(false)
+    }
+  }
 
   const submitManual = async () => {
     if (!title.trim()) return alert('请输入标题')
@@ -68,38 +115,43 @@ export default function Create() {
 
   const submitAI = async () => {
     if (!synopsis.trim()) return alert('请输入作品梗概')
-    if (!selectedTextProvider || !selectedImageProvider) return alert('请选择生成服务')
+
+    if (aiSource === 'platform') {
+      if (!selectedTextProvider || (aiType !== 'novel' && !selectedImageProvider)) return alert('请选择生成服务')
+    } else {
+      if (!customTextBaseUrl || !customTextApiKey || !customTextModel) return alert('请完整填写文字模型配置')
+      if (aiType !== 'novel' && (!customImageBaseUrl || !customImageApiKey || !customImageModel)) return alert('请完整填写图片模型配置')
+    }
+
     setAiGenerating(true)
-    setAiStep(1)
     setAiError('')
 
     try {
-      // Step 1: 正在生成分镜脚本
-      setAiStep(2)
+      if (aiSource === 'platform') {
+        await aiApi.generate({
+          synopsis: synopsis.trim(),
+          style: aiStyle,
+          type: aiType,
+          pageCount: aiPageCount,
+          textProvider: selectedTextProvider,
+          imageProvider: selectedImageProvider,
+        })
+      } else {
+        await aiApi.generateCustom({
+          synopsis: synopsis.trim(),
+          style: aiStyle,
+          type: aiType,
+          pageCount: aiPageCount,
+          textConfig: { baseUrl: customTextBaseUrl.trim(), apiKey: customTextApiKey.trim(), model: customTextModel.trim() },
+          imageConfig: { baseUrl: customImageBaseUrl.trim(), apiKey: customImageApiKey.trim(), model: customImageModel.trim() },
+        })
+      }
 
-      const result = await aiApi.generate({
-        synopsis: synopsis.trim(),
-        style: aiStyle,
-        type: aiType,
-        pageCount: aiPageCount,
-        textProvider: selectedTextProvider,
-        imageProvider: selectedImageProvider,
-      })
-
-      setAiStep(3)
-      setAiResult({
-        title: result.title,
-        desc: result.description,
-        pages: result.pages.map((p) => ({
-          description: p.description,
-          dialogue: p.dialogue,
-          image_url: p.image_url,
-          ai_generated: true,
-        })),
-      })
+      // 两种模式统一：任务已提交，跳转到个人页
+      alert('创作任务已提交，可在个人页查看进度')
+      navigate('/profile')
     } catch (err: any) {
       setAiError(err.message || 'AI 生成失败，请重试')
-    } finally {
       setAiGenerating(false)
     }
   }
@@ -177,12 +229,45 @@ export default function Create() {
             </div>
             <div>
               <label className="text-xs text-text-secondary">作品类型</label>
-              <select className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary" value={type} onChange={(e) => setType(e.target.value as 'comic' | 'drama')}>
+              <select className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary" value={type} onChange={(e) => setType(e.target.value as 'comic' | 'drama' | 'novel')}>
                 <option value="comic">漫画</option>
                 <option value="drama">短剧</option>
+                <option value="novel">小说</option>
               </select>
             </div>
-            <PagesEditor pages={pages} onChange={setPages} showUpload onUploadPage={handleUpload} />
+            {type === 'novel' ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs text-text-secondary">章节内容</label>
+                  <button onClick={() => setPages([...pages, { description: '', dialogue: '' }])} className="text-xs text-primary hover:text-primary-light">+ 添加章节</button>
+                </div>
+                {pages.map((page, i) => (
+                  <div key={i} className="bg-bg-card border border-border rounded-xl p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-text-secondary font-medium">第{i + 1}章</span>
+                      {pages.length > 1 && (
+                        <button onClick={() => setPages(pages.filter((_, idx) => idx !== i))} className="text-xs text-accent-pink">删除</button>
+                      )}
+                    </div>
+                    <input
+                      className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text placeholder:text-text-secondary focus:outline-none focus:border-primary"
+                      placeholder="章节标题（可选）"
+                      value={page.dialogue}
+                      onChange={(e) => { const p = [...pages]; p[i] = { ...p[i]!, dialogue: e.target.value }; setPages(p) }}
+                    />
+                    <textarea
+                      className="w-full bg-bg-secondary border border-border rounded-lg px-3 py-2 text-sm text-text placeholder:text-text-secondary focus:outline-none focus:border-primary resize-none leading-relaxed"
+                      rows={8}
+                      placeholder="在这里写下你的故事内容..."
+                      value={page.description}
+                      onChange={(e) => { const p = [...pages]; p[i] = { ...p[i]!, description: e.target.value }; setPages(p) }}
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <PagesEditor pages={pages} onChange={setPages} showUpload onUploadPage={handleUpload} />
+            )}
             <button onClick={submitManual} className="w-full py-3 bg-primary rounded-lg text-sm text-white font-medium hover:bg-primary-light transition-colors">发布作品</button>
           </>
         ) : aiGenerating ? (
@@ -214,73 +299,121 @@ export default function Create() {
           </div>
         ) : (
           <>
-            {/* Provider 选择 */}
+            {/* AI 来源选择 */}
             <div>
-              <label className="text-xs text-text-secondary">文字生成服务（LLM 分镜）</label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {textProviders.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedTextProvider(p.id)}
-                    className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs transition-colors ${
-                      selectedTextProvider === p.id ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'
-                    }`}
-                  >
-                    <span className="text-lg">{p.icon}</span>
-                    <span>{p.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-text-secondary">图片生成服务（文生图）</label>
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                {imageProviders.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setSelectedImageProvider(p.id)}
-                    className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs transition-colors ${
-                      selectedImageProvider === p.id ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'
-                    }`}
-                  >
-                    <span className="text-lg">{p.icon}</span>
-                    <span>{p.name}</span>
-                  </button>
-                ))}
+              <label className="text-xs text-text-secondary">AI 服务来源</label>
+              <div className="flex gap-2 mt-1">
+                <button
+                  onClick={() => setAiSource('platform')}
+                  className={`flex-1 p-2.5 rounded-lg border text-xs text-left transition-colors ${
+                    aiSource === 'platform' ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'
+                  }`}
+                >
+                  <div className="font-medium">🌋 平台能力</div>
+                  <div className="text-[10px] text-text-secondary mt-0.5">消耗积分{credits !== null ? `（剩余${credits}）` : ''}</div>
+                </button>
+                <button
+                  onClick={() => setAiSource('custom')}
+                  className={`flex-1 p-2.5 rounded-lg border text-xs text-left transition-colors ${
+                    aiSource === 'custom' ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'
+                  }`}
+                >
+                  <div className="font-medium">🔑 自己的API</div>
+                  <div className="text-[10px] text-text-secondary mt-0.5">使用你自己的模型接口</div>
+                </button>
               </div>
             </div>
 
+            {aiSource === 'platform' ? (
+              <>
+                {/* 积分提示 */}
+                {credits !== null && credits < aiPageCount * 100 && (
+                  <div className="bg-accent-pink/10 border border-accent-pink/30 rounded-lg p-3 text-xs text-accent-pink">
+                    积分不足！生成{aiPageCount}页需要{aiPageCount * 100}积分，当前剩余{credits}积分。请签到获取积分或切换到"自己的API"。
+                  </div>
+                )}
+                {/* Provider 选择 */}
+                {textProviders.length > 1 && (
+                  <div>
+                    <label className="text-xs text-text-secondary">文字生成服务</label>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      {textProviders.map((p) => (
+                        <button key={p.id} onClick={() => setSelectedTextProvider(p.id)} className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs transition-colors ${selectedTextProvider === p.id ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'}`}>
+                          <span className="text-lg">{p.icon}</span><span>{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {imageProviders.length > 1 && (
+                  <div>
+                    <label className="text-xs text-text-secondary">图片生成服务</label>
+                    <div className="grid grid-cols-2 gap-2 mt-1">
+                      {imageProviders.map((p) => (
+                        <button key={p.id} onClick={() => setSelectedImageProvider(p.id)} className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs transition-colors ${selectedImageProvider === p.id ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'}`}>
+                          <span className="text-lg">{p.icon}</span><span>{p.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-3 bg-bg-secondary rounded-lg p-3">
+                <div className="text-xs font-medium text-text-secondary">文字模型（LLM 分镜生成）</div>
+                <input className="w-full bg-bg-card border border-border rounded-lg px-3 py-2 text-xs text-text placeholder:text-text-secondary focus:outline-none focus:border-primary" placeholder="API Base URL（如 https://ark.cn-beijing.volces.com/api/v3）" value={customTextBaseUrl} onChange={(e) => setCustomTextBaseUrl(e.target.value)} />
+                <input className="w-full bg-bg-card border border-border rounded-lg px-3 py-2 text-xs text-text placeholder:text-text-secondary focus:outline-none focus:border-primary" placeholder="API Key" type="password" value={customTextApiKey} onChange={(e) => setCustomTextApiKey(e.target.value)} />
+                <input className="w-full bg-bg-card border border-border rounded-lg px-3 py-2 text-xs text-text placeholder:text-text-secondary focus:outline-none focus:border-primary" placeholder="模型名称（如 ep-xxxxx 或 gpt-4o-mini）" value={customTextModel} onChange={(e) => setCustomTextModel(e.target.value)} />
+
+                <div className="text-xs font-medium text-text-secondary mt-2">图片模型（文生图）</div>
+                <input className="w-full bg-bg-card border border-border rounded-lg px-3 py-2 text-xs text-text placeholder:text-text-secondary focus:outline-none focus:border-primary" placeholder="API Base URL" value={customImageBaseUrl} onChange={(e) => setCustomImageBaseUrl(e.target.value)} />
+                <input className="w-full bg-bg-card border border-border rounded-lg px-3 py-2 text-xs text-text placeholder:text-text-secondary focus:outline-none focus:border-primary" placeholder="API Key" type="password" value={customImageApiKey} onChange={(e) => setCustomImageApiKey(e.target.value)} />
+                <input className="w-full bg-bg-card border border-border rounded-lg px-3 py-2 text-xs text-text placeholder:text-text-secondary focus:outline-none focus:border-primary" placeholder="模型名称" value={customImageModel} onChange={(e) => setCustomImageModel(e.target.value)} />
+
+                <button onClick={saveCustomConfig} disabled={configSaving} className="w-full py-2 bg-bg-card border border-border rounded-lg text-xs hover:border-primary transition-colors disabled:opacity-50">
+                  {configSaving ? '保存中...' : '保存配置（下次自动填入）'}
+                </button>
+              </div>
+            )}
+
             <div>
               <label className="text-xs text-text-secondary">作品类型</label>
-              <select className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary" value={aiType} onChange={(e) => setAiType(e.target.value as 'comic' | 'drama')}>
+              <select className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary" value={aiType} onChange={(e) => setAiType(e.target.value as 'comic' | 'drama' | 'novel')}>
                 <option value="comic">漫画</option>
                 <option value="drama">短剧</option>
+                <option value="novel">小说</option>
               </select>
             </div>
             <div>
               <label className="text-xs text-text-secondary">作品梗概</label>
               <textarea className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text placeholder:text-text-secondary focus:outline-none focus:border-primary resize-none" rows={5} placeholder="描述你想创作的故事..." value={synopsis} onChange={(e) => setSynopsis(e.target.value)} />
             </div>
-            <div>
-              <label className="text-xs text-text-secondary">画面风格</label>
-              <div className="grid grid-cols-3 gap-2 mt-1">
-                {styles.map((s) => (
-                  <button key={s.value} onClick={() => setAiStyle(s.value)} className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border text-xs transition-colors ${aiStyle === s.value ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'}`}>
-                    <span className="text-lg">{s.icon}</span>
-                    <span>{s.name}</span>
-                  </button>
-                ))}
+            {aiType !== 'novel' && (
+              <div>
+                <label className="text-xs text-text-secondary">画面风格</label>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  {styles.map((s) => (
+                    <button key={s.value} onClick={() => setAiStyle(s.value)} className={`flex flex-col items-center gap-1 p-2.5 rounded-lg border text-xs transition-colors ${aiStyle === s.value ? 'border-primary bg-primary/10' : 'border-border bg-bg-card'}`}>
+                      <span className="text-lg">{s.icon}</span>
+                      <span>{s.name}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
             <div>
-              <label className="text-xs text-text-secondary">生成页数</label>
+              <label className="text-xs text-text-secondary">
+                {aiType === 'novel' ? '生成章节数' : '生成页数'}
+                {aiSource === 'platform' && credits !== null ? `（消耗${aiPageCount * 100}积分）` : ''}
+              </label>
               <div className="flex items-center gap-3 mt-1">
                 <button onClick={() => setAiPageCount(Math.max(2, aiPageCount - 1))} className="w-8 h-8 flex items-center justify-center bg-bg-card border border-border rounded-lg text-lg">-</button>
                 <span className="text-lg font-semibold w-6 text-center">{aiPageCount}</span>
                 <button onClick={() => setAiPageCount(Math.min(12, aiPageCount + 1))} className="w-8 h-8 flex items-center justify-center bg-bg-card border border-border rounded-lg text-lg">+</button>
-                <span className="text-xs text-text-secondary">页分镜</span>
+                <span className="text-xs text-text-secondary">{aiType === 'novel' ? '章' : '页分镜'}</span>
               </div>
             </div>
+            {aiError && <div className="bg-accent-pink/10 border border-accent-pink/30 rounded-lg p-3 text-xs text-accent-pink">{aiError}</div>}
             <button onClick={submitAI} className="w-full py-3 bg-primary rounded-lg text-sm text-white font-medium hover:bg-primary-light transition-colors">AI 一键生成</button>
           </>
         )}

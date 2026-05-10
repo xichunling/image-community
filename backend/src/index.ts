@@ -6,8 +6,9 @@ import routes from './routes'
 import authRoutes from './authRoutes'
 import aiRoutes from './aiRoutes'
 import uploadRoutes from './uploadRoutes'
+import creditsRoutes from './creditsRoutes'
 import { optionalAuth } from './auth'
-import seedData from './seed'
+// import seedData from './seed'
 
 const app = express()
 const PORT = 3000
@@ -31,7 +32,19 @@ app.use('/api/ai', aiRoutes)
 // 上传路由
 app.use('/api/upload', uploadRoutes)
 
-seedData()
+// 积分路由
+app.use('/api/credits', creditsRoutes)
+
+// 静态服务前端构建产物
+const clientDist = path.join(__dirname, '..', '..', 'client', 'dist')
+app.use(express.static(clientDist))
+
+// SPA fallback：非 /api 请求都返回 index.html
+app.get(/.*/,  (_req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'))
+})
+
+// seedData()
 
 app.listen(PORT, () => {
   console.log(`影像社区服务已启动: http://localhost:${PORT}`)

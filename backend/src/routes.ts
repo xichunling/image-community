@@ -12,9 +12,11 @@ router.get('/users', (_req: Request, res: Response) => {
 })
 
 router.get('/users/:id', (req: Request<{ id: string }>, res: Response) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.params.id)
+  const user = db.prepare('SELECT id, username, nickname, avatar, bio, created_at FROM users WHERE id = ?').get(req.params.id) as any
   if (!user) return res.status(404).json({ error: '用户不存在' })
-  res.json(user)
+  const followerCount = (db.prepare('SELECT COUNT(*) as c FROM follows WHERE following_id = ?').get(req.params.id) as any).c
+  const followingCount = (db.prepare('SELECT COUNT(*) as c FROM follows WHERE follower_id = ?').get(req.params.id) as any).c
+  res.json({ ...user, followerCount, followingCount })
 })
 
 router.get('/users/:id/works', (req: Request<{ id: string }>, res: Response) => {
@@ -38,6 +40,46 @@ router.get('/users/:id/contributions', (req: Request<{ id: string }>, res: Respo
     ORDER BY c.joined_at DESC
   `).all(req.params.id)
   res.json(works)
+})
+
+// ============ 关注 API ============
+
+// 关注用户
+router.post('/users/:id/follow', requireAuth, (req: AuthRequest, res: Response) => {
+  const targetId = Number(req.params.id)
+  if (targetId === req.userId) { res.status(400).json({ error: '不能关注自己' }); return }
+  try {
+    db.prepare('INSERT INTO follows (follower_id, following_id) VALUES (?, ?)').run(req.userId, targetId)
+    res.json({ message: '关注成功' })
+  } catch {
+    res.status(409).json({ error: '已关注' })
+  }
+})
+
+// 取消关注
+router.delete('/users/:id/follow', requireAuth, (req: AuthRequest, res: Response) => {
+  db.prepare('DELETE FROM follows WHERE follower_id = ? AND following_id = ?').run(req.userId, Number(req.params.id))
+  res.json({ message: '已取消关注' })
+})
+
+// 关注状态
+router.get('/users/:id/follow-status', requireAuth, (req: AuthRequest, res: Response) => {
+  const targetId = Number(req.params.id)
+  const isFollowing = !!db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?').get(req.userId, targetId)
+  const isFollowedBy = !!db.prepare('SELECT 1 FROM follows WHERE follower_id = ? AND following_id = ?').get(targetId, req.userId)
+  res.json({ isFollowing, isFollowedBy, isMutual: isFollowing && isFollowedBy })
+})
+
+// 粉丝列表
+router.get('/users/:id/followers', (req: Request<{ id: string }>, res: Response) => {
+  const followers = db.prepare('SELECT u.id, u.nickname, u.avatar, u.bio FROM follows f JOIN users u ON f.follower_id = u.id WHERE f.following_id = ? ORDER BY f.created_at DESC').all(req.params.id)
+  res.json(followers)
+})
+
+// 关注列表
+router.get('/users/:id/following', (req: Request<{ id: string }>, res: Response) => {
+  const following = db.prepare('SELECT u.id, u.nickname, u.avatar, u.bio FROM follows f JOIN users u ON f.following_id = u.id WHERE f.follower_id = ? ORDER BY f.created_at DESC').all(req.params.id)
+  res.json(following)
 })
 
 // ============ 作品 API ============

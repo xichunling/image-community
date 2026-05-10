@@ -1,7 +1,8 @@
 import type { TextBreakdownRequest, PageBreakdown } from './types'
 
 export function buildTextBreakdownPrompt(req: TextBreakdownRequest): string {
-  const typeLabel = req.type === 'comic' ? '漫画' : '短剧'
+  const typeLabelMap: Record<string, string> = { comic: '漫画', drama: '短剧', novel: '小说' }
+  const typeLabel = typeLabelMap[req.type] || '漫画'
   const styleMap: Record<string, string> = {
     cyberpunk: '赛博朋克',
     watercolor: '水彩',
@@ -11,6 +12,33 @@ export function buildTextBreakdownPrompt(req: TextBreakdownRequest): string {
     anime: '日漫',
   }
   const styleLabel = styleMap[req.style] || req.style
+
+  if (req.type === 'novel') {
+    return `你是一个专业的小说作家。请根据以下梗概，创作一个${req.pageCount}章的短篇小说。
+
+梗概：${req.synopsis}
+章节数：${req.pageCount}
+
+请严格按以下 JSON 格式输出，不要输出任何其他内容：
+{
+  "title": "作品标题",
+  "description": "作品简介（一句话）",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "description": "本章正文内容（300-500字，完整的一章内容）",
+      "dialogue": "章节标题",
+      "imagePrompt": ""
+    }
+  ]
+}
+
+要求：
+1. 每章正文放在 description 字段，章节标题放在 dialogue 字段
+2. 故事要有起承转合，节奏合理
+3. 文笔流畅，有画面感和代入感
+4. imagePrompt 留空字符串`
+  }
 
   return `你是一个专业的${typeLabel}分镜编剧。请根据以下梗概，创作一个${req.pageCount}页的${typeLabel}分镜脚本。
 
@@ -40,7 +68,7 @@ export function buildTextBreakdownPrompt(req: TextBreakdownRequest): string {
 5. imagePrompt 不需要包含对白文字，因为文字会在画面中叠加显示`
 }
 
-export function buildImagePrompt(page: PageBreakdown, style: string, type: 'comic' | 'drama'): string {
+export function buildImagePrompt(page: PageBreakdown, style: string, type: 'comic' | 'drama' | 'novel'): string {
   const styleMap: Record<string, string> = {
     cyberpunk: 'cyberpunk style, neon lights, futuristic city',
     watercolor: 'watercolor painting style, soft colors, flowing',

@@ -4,7 +4,7 @@ export interface TextBreakdownRequest {
   synopsis: string
   style: string
   pageCount: number
-  type: 'comic' | 'drama'
+  type: 'comic' | 'drama' | 'novel'
 }
 
 export interface PageBreakdown {
@@ -20,6 +20,7 @@ export interface TextBreakdownResult {
   description: string
   pages: PageBreakdown[]
   error?: string
+  usage?: { promptTokens: number; completionTokens: number }
 }
 
 // ===== 图片生成（文生图） =====

@@ -93,8 +93,45 @@ export const aiApi = {
     request<{ textProviders: import('../types').TextProviderInfo[]; imageProviders: import('../types').ImageProviderInfo[] }>('/ai/providers'),
   generate: (data: import('../types').AIGenerateRequest) =>
     request<import('../types').AIGenerateResult>('/ai/generate', { method: 'POST', body: JSON.stringify(data) }),
+  generateCustom: (data: { synopsis: string; style: string; type: string; pageCount: number; textConfig: { baseUrl: string; apiKey: string; model: string }; imageConfig: { baseUrl: string; apiKey: string; model: string } }) =>
+    request<import('../types').AIGenerateResult>('/ai/generate-custom', { method: 'POST', body: JSON.stringify(data) }),
   generatePage: (data: { provider: string; style: string; type: string; imagePrompt: string; dialogue: string }) =>
     request<{ image_url: string; ai_generated: boolean }>('/ai/generate-page', { method: 'POST', body: JSON.stringify(data) }),
+  getConfig: () =>
+    request<{ text_base_url: string; text_api_key: string; text_model: string; image_base_url: string; image_api_key: string; image_model: string }>('/ai/config'),
+  saveConfig: (data: { text_base_url: string; text_api_key: string; text_model: string; image_base_url: string; image_api_key: string; image_model: string }) =>
+    request<{ message: string }>('/ai/config', { method: 'PUT', body: JSON.stringify(data) }),
+}
+
+export const creditsApi = {
+  status: () =>
+    request<{ credits: number; checkedInToday: boolean; streak: number }>('/credits/status'),
+  checkIn: () =>
+    request<{ creditsEarned: number; streak: number; totalCredits: number; message: string }>('/credits/check-in', { method: 'POST' }),
+  logs: () =>
+    request<{ id: number; amount: number; type: string; description: string; task_id: number | null; created_at: string }[]>('/credits/logs'),
+}
+
+export const tasksApi = {
+  list: () =>
+    request<{ id: number; status: string; type: string; credits_used: number; created_at: string; completed_at: string | null; error: string | null }[]>('/ai/tasks'),
+  getById: (id: number) =>
+    request<any>(`/ai/tasks/${id}`),
+  publish: (id: number, data?: { title?: string; description?: string }) =>
+    request<{ id: number; message: string }>(`/ai/tasks/${id}/publish`, { method: 'POST', body: JSON.stringify(data || {}) }),
+}
+
+export const followsApi = {
+  follow: (userId: number) =>
+    request<{ message: string }>(`/users/${userId}/follow`, { method: 'POST' }),
+  unfollow: (userId: number) =>
+    request<{ message: string }>(`/users/${userId}/follow`, { method: 'DELETE' }),
+  status: (userId: number) =>
+    request<{ isFollowing: boolean; isFollowedBy: boolean; isMutual: boolean }>(`/users/${userId}/follow-status`),
+  followers: (userId: number) =>
+    request<import('../types').User[]>(`/users/${userId}/followers`),
+  following: (userId: number) =>
+    request<import('../types').User[]>(`/users/${userId}/following`),
 }
 
 export const uploadApi = {

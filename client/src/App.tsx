@@ -13,6 +13,8 @@ import CreationTree from './pages/CreationTree'
 import Fork from './pages/Fork'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import TaskPreview from './pages/TaskPreview'
+import UserProfile from './pages/UserProfile'
 
 function AppLayout() {
   return (
@@ -29,6 +31,8 @@ function AppLayout() {
         <Route path="/fork/:id" element={<ProtectedRoute><Fork /></ProtectedRoute>} />
         <Route path="/chat/:id" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/task/:id" element={<ProtectedRoute><TaskPreview /></ProtectedRoute>} />
+        <Route path="/user/:id" element={<UserProfile />} />
       </Routes>
       <TabBar />
     </>

@@ -53,12 +53,12 @@ router.post('/login', async (req: AuthRequest, res: Response) => {
     | undefined
 
   if (!user) {
-    return res.status(401).json({ error: '用户名或密码错误' })
+    return res.status(404).json({ error: '该账号未注册，请先注册' })
   }
 
   const valid = await bcrypt.compare(password, user.password_hash)
   if (!valid) {
-    return res.status(401).json({ error: '用户名或密码错误' })
+    return res.status(401).json({ error: '密码错误' })
   }
 
   const token = generateToken(user.id)

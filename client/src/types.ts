@@ -20,7 +20,7 @@ export interface Work {
   title: string
   description: string
   cover_image: string
-  type: 'comic' | 'drama'
+  type: 'comic' | 'drama' | 'novel'
   creator_id: number
   parent_work_id: number | null
   root_work_id: number | null
@@ -76,7 +76,7 @@ export interface Bookmark {
   updated_at: string
   title?: string
   description?: string
-  type?: 'comic' | 'drama'
+  type?: 'comic' | 'drama' | 'novel'
   creator_name?: string
   creator_avatar?: string
   total_pages?: number
@@ -111,7 +111,7 @@ export interface TreeNode {
   id: number
   title: string
   cover_image: string
-  type: 'comic' | 'drama'
+  type: 'comic' | 'drama' | 'novel'
   parent_work_id: number | null
   root_work_id: number | null
   creator_id: number
@@ -153,7 +153,7 @@ export interface ImageProviderInfo {
 export interface AIGenerateRequest {
   synopsis: string
   style: string
-  type: 'comic' | 'drama'
+  type: 'comic' | 'drama' | 'novel'
   pageCount: number
   textProvider: string
   imageProvider: string

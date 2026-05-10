@@ -45,6 +45,15 @@ export class VolcengineTextProvider implements TextProvider {
       return { success: false, title: '', description: '', pages: [], error: 'LLM 返回内容为空' }
     }
 
+    const usage = response.usage ? {
+      promptTokens: response.usage.prompt_tokens || 0,
+      completionTokens: response.usage.completion_tokens || 0,
+    } : undefined
+
+    if (usage) {
+      console.log(`[Volcengine Text] Token 用量: 输入=${usage.promptTokens}, 输出=${usage.completionTokens}`)
+    }
+
     try {
       const parsed = JSON.parse(content)
       const pages: PageBreakdown[] = (parsed.pages || []).map((p: any, i: number) => ({
@@ -58,6 +67,7 @@ export class VolcengineTextProvider implements TextProvider {
         title: parsed.title || '未命名作品',
         description: parsed.description || '',
         pages,
+        usage,
       }
     } catch {
       return { success: false, title: '', description: '', pages: [], error: 'JSON 解析失败' }

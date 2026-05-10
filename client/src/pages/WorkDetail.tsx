@@ -80,25 +80,38 @@ export default function WorkDetail() {
 
         {/* Pages */}
         <div>
-          <h3 className="text-sm font-semibold mb-3">分镜内容 ({pages.length}页)</h3>
+          <h3 className="text-sm font-semibold mb-3">
+            {work.type === 'novel' ? `正文 (${pages.length}章)` : `分镜内容 (${pages.length}页)`}
+          </h3>
           <div className="space-y-3">
             {pages.map((page) => (
               <div key={page.id} className="bg-bg-card rounded-xl overflow-hidden">
-                {page.image_url ? (
-                  <div className="relative">
-                    <img src={page.image_url} alt={`第${page.page_number}页`} className="w-full object-cover" />
+                {work.type === 'novel' ? (
+                  <div className="p-4">
+                    {page.dialogue && (
+                      <div className="text-sm font-semibold mb-2">第{page.page_number}章 {page.dialogue}</div>
+                    )}
+                    <div className="text-sm leading-relaxed whitespace-pre-wrap">{page.description}</div>
                   </div>
                 ) : (
-                  <div className="bg-gradient-to-br from-bg-secondary to-bg-card p-4 min-h-[80px] flex items-center text-sm">
-                    {page.description}
-                  </div>
+                  <>
+                    {page.image_url ? (
+                      <div className="relative">
+                        <img src={page.image_url} alt={`第${page.page_number}页`} className="w-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-br from-bg-secondary to-bg-card p-4 min-h-[80px] flex items-center text-sm">
+                        {page.description}
+                      </div>
+                    )}
+                    <div className="px-4 py-2">
+                      <div className="text-[10px] text-text-secondary">第{page.page_number}页</div>
+                      {page.dialogue && (
+                        <div className="text-sm text-primary-light mt-0.5">"{page.dialogue}"</div>
+                      )}
+                    </div>
+                  </>
                 )}
-                <div className="px-4 py-2">
-                  <div className="text-[10px] text-text-secondary">第{page.page_number}页</div>
-                  {page.dialogue && (
-                    <div className="text-sm text-primary-light mt-0.5">"{page.dialogue}"</div>
-                  )}
-                </div>
               </div>
             ))}
           </div>
@@ -123,6 +136,15 @@ export default function WorkDetail() {
             className="flex-1 py-2.5 bg-bg-card border border-border rounded-lg text-sm hover:border-primary transition-colors"
           >
             加入书架
+          </button>
+          <button
+            onClick={() => {
+              const url = `${window.location.origin}${window.location.pathname}#/work/${work.id}`
+              navigator.clipboard.writeText(url).then(() => alert('链接已复制，发送给朋友即可打开'))
+            }}
+            className="flex-1 py-2.5 bg-bg-card border border-border rounded-lg text-sm hover:border-primary transition-colors"
+          >
+            分享
           </button>
         </div>
 
