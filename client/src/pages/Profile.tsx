@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { usersApi, creditsApi, tasksApi } from '../api'
+import { usersApi, creditsApi, tasksApi, followsApi } from '../api'
 import type { Work } from '../types'
 import { useUser } from '../contexts/UserContext'
+import FollowListModal from '../components/FollowListModal'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -16,6 +17,9 @@ export default function Profile() {
   const [tasks, setTasks] = useState<any[]>([])
   const [creditLogs, setCreditLogs] = useState<any[]>([])
   const [showLogs, setShowLogs] = useState(false)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followingCount, setFollowingCount] = useState(0)
+  const [showFollowList, setShowFollowList] = useState<'followers' | 'following' | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -36,6 +40,10 @@ export default function Profile() {
     }).catch(() => {})
     tasksApi.list().then(setTasks).catch(() => {})
     creditsApi.logs().then(setCreditLogs).catch(() => {})
+    usersApi.getById(user.id).then((u: any) => {
+      setFollowerCount(u.followerCount ?? 0)
+      setFollowingCount(u.followingCount ?? 0)
+    }).catch(() => {})
   }, [user])
 
   const handleCheckIn = async () => {
@@ -89,6 +97,20 @@ export default function Profile() {
               <div className="text-xl font-bold">{coCreated.length}</div>
               <div className="text-[10px] text-text-secondary">参与共创</div>
             </div>
+            <button
+              className="text-center hover:opacity-80 transition-opacity"
+              onClick={() => setShowFollowList('followers')}
+            >
+              <div className="text-xl font-bold">{followerCount}</div>
+              <div className="text-[10px] text-text-secondary">粉丝</div>
+            </button>
+            <button
+              className="text-center hover:opacity-80 transition-opacity"
+              onClick={() => setShowFollowList('following')}
+            >
+              <div className="text-xl font-bold">{followingCount}</div>
+              <div className="text-[10px] text-text-secondary">关注</div>
+            </button>
             <div className="text-center">
               <div className="text-xl font-bold text-primary">{credits ?? '...'}</div>
               <div className="text-[10px] text-text-secondary">积分</div>
@@ -200,6 +222,14 @@ export default function Profile() {
             </div>
           ))}
         </div>
+      )}
+
+      {showFollowList && (
+        <FollowListModal
+          userId={user.id}
+          type={showFollowList}
+          onClose={() => setShowFollowList(null)}
+        />
       )}
     </div>
   )

@@ -5,6 +5,7 @@ import type { Work } from '../types'
 import { useUser } from '../contexts/UserContext'
 import BackHeader from '../components/BackHeader'
 import WorkCard from '../components/WorkCard'
+import FollowListModal from '../components/FollowListModal'
 
 interface UserInfo {
   id: number
@@ -25,6 +26,7 @@ export default function UserProfile() {
   const [isFollowing, setIsFollowing] = useState(false)
   const [isMutual, setIsMutual] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [showFollowList, setShowFollowList] = useState<'followers' | 'following' | null>(null)
 
   const isMe = currentUser && id && currentUser.id === Number(id)
 
@@ -82,14 +84,20 @@ export default function UserProfile() {
               <div className="text-xl font-bold">{works.length}</div>
               <div className="text-[10px] text-text-secondary">作品</div>
             </div>
-            <div className="text-center">
+            <button
+              className="text-center hover:opacity-80 transition-opacity"
+              onClick={() => setShowFollowList('followers')}
+            >
               <div className="text-xl font-bold">{userInfo.followerCount}</div>
               <div className="text-[10px] text-text-secondary">粉丝</div>
-            </div>
-            <div className="text-center">
+            </button>
+            <button
+              className="text-center hover:opacity-80 transition-opacity"
+              onClick={() => setShowFollowList('following')}
+            >
               <div className="text-xl font-bold">{userInfo.followingCount}</div>
               <div className="text-[10px] text-text-secondary">关注</div>
-            </div>
+            </button>
           </div>
 
           {!isMe && (
@@ -122,6 +130,14 @@ export default function UserProfile() {
           ))}
         </div>
       </div>
+
+      {showFollowList && id && (
+        <FollowListModal
+          userId={Number(id)}
+          type={showFollowList}
+          onClose={() => setShowFollowList(null)}
+        />
+      )}
     </div>
   )
 }

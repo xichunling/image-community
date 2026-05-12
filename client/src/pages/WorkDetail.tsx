@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { worksApi, bookmarksApi, commentsApi } from '../api'
+import { worksApi, bookmarksApi, commentsApi, followsApi } from '../api'
 import type { WorkDetail as WorkDetailType, WorkPage, Comment } from '../types'
 import { useUser } from '../contexts/UserContext'
 import BackHeader from '../components/BackHeader'
@@ -13,6 +13,8 @@ export default function WorkDetail() {
   const [work, setWork] = useState<WorkDetailType | null>(null)
   const [pages, setPages] = useState<WorkPage[]>([])
   const [comments, setComments] = useState<Comment[]>([])
+  const [followingMap, setFollowingMap] = useState<Record<number, boolean>>({})
+  const [followLoading, setFollowLoading] = useState<Record<number, boolean>>({})
 
   useEffect(() => {
     if (!id) return
@@ -26,6 +28,37 @@ export default function WorkDetail() {
       setComments(c)
     })
   }, [id])
+
+  useEffect(() => {
+    if (!user || !work) return
+    const contribIds = work.contributors.map((c) => c.id).filter((cid) => cid !== user.id)
+    if (contribIds.length === 0) return
+    Promise.all(contribIds.map((cid) =>
+      followsApi.status(cid).then((s) => ({ id: cid, following: s.isFollowing })).catch(() => ({ id: cid, following: false }))
+    )).then((results) => {
+      const map: Record<number, boolean> = {}
+      results.forEach((r) => { map[r.id] = r.following })
+      setFollowingMap(map)
+    })
+  }, [work, user])
+
+  const handleToggleFollow = async (targetId: number) => {
+    if (!user) { navigate('/login'); return }
+    setFollowLoading((prev) => ({ ...prev, [targetId]: true }))
+    try {
+      if (followingMap[targetId]) {
+        await followsApi.unfollow(targetId)
+        setFollowingMap((prev) => ({ ...prev, [targetId]: false }))
+      } else {
+        await followsApi.follow(targetId)
+        setFollowingMap((prev) => ({ ...prev, [targetId]: true }))
+      }
+    } catch (err: any) {
+      // ignore
+    } finally {
+      setFollowLoading((prev) => ({ ...prev, [targetId]: false }))
+    }
+  }
 
   const addToShelf = async () => {
     if (!work) return
@@ -66,13 +99,26 @@ export default function WorkDetail() {
           <div className="flex flex-wrap gap-2">
             {work.contributors.map((c) => (
               <div key={c.id} className="flex items-center gap-1.5 bg-bg-card px-2.5 py-1 rounded-full text-xs">
-                <span>{c.avatar}</span>
-                <span>{c.nickname}</span>
+                <span className="cursor-pointer" onClick={() => navigate(`/user/${c.id}`)}>{c.avatar}</span>
+                <span className="cursor-pointer" onClick={() => navigate(`/user/${c.id}`)}>{c.nickname}</span>
                 <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                   c.role === 'creator' ? 'bg-primary/20 text-primary-light' : 'bg-accent/20 text-accent'
                 }`}>
                   {c.role === 'creator' ? '创作者' : '上游作者'}
                 </span>
+                {user && user.id !== c.id && (
+                  <button
+                    onClick={() => handleToggleFollow(c.id)}
+                    disabled={followLoading[c.id]}
+                    className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-medium transition-colors ${
+                      followingMap[c.id]
+                        ? 'bg-bg-secondary text-text-secondary'
+                        : 'bg-primary text-white'
+                    }`}
+                  >
+                    {followingMap[c.id] ? '已关注' : '关注'}
+                  </button>
+                )}
               </div>
             ))}
           </div>
