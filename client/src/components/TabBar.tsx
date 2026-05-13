@@ -22,7 +22,7 @@ export default function TabBar() {
   const tabs = user ? fullTabs : guestTabs
 
   // 登录/注册页不显示 TabBar（通过 CSS 隐藏）
-  const hideTabs = currentPath === '/login' || currentPath === '/register'
+  const hideTabs = currentPath === '/login' || currentPath === '/register' || currentPath.startsWith('/chat')
   if (hideTabs) return null
 
   return (

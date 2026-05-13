@@ -43,7 +43,7 @@ export default function Chat() {
     <div className="pb-0">
       <BackHeader title={title} />
 
-      <div className="px-4 pb-20 min-h-[calc(100vh-60px)]">
+      <div className="px-4 pb-16 min-h-[calc(100vh-60px)]">
         {conversation?.type === 'group' && conversation.work_id && (
           <div className="text-center text-xs text-text-secondary py-2 bg-bg-secondary rounded-lg mb-3">
             共创群聊 · {members.length}人
