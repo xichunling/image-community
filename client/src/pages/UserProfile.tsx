@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { usersApi, followsApi } from '../api'
+import { usersApi, followsApi, conversationsApi } from '../api'
 import type { Work } from '../types'
 import { useUser } from '../contexts/UserContext'
 import BackHeader from '../components/BackHeader'
@@ -41,6 +41,16 @@ export default function UserProfile() {
       }).catch(() => {})
     }
   }, [id, currentUser])
+
+  const handleDM = async () => {
+    if (!id || !currentUser) { navigate('/login'); return }
+    try {
+      const res = await conversationsApi.create(Number(id))
+      navigate(`/chat/${res.conversation_id}`)
+    } catch (err: any) {
+      alert(err.message || '操作失败')
+    }
+  }
 
   const handleFollow = async () => {
     if (!id || !currentUser) { navigate('/login'); return }
@@ -101,17 +111,25 @@ export default function UserProfile() {
           </div>
 
           {!isMe && (
-            <button
-              onClick={handleFollow}
-              disabled={loading}
-              className={`mt-4 px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
-                isFollowing
-                  ? 'bg-bg-secondary border border-border text-text-secondary hover:text-accent-pink'
-                  : 'bg-primary text-white hover:bg-primary-light'
-              }`}
-            >
-              {isMutual ? '互相关注' : isFollowing ? '已关注' : '关注'}
-            </button>
+            <div className="mt-4 flex gap-2 justify-center">
+              <button
+                onClick={handleFollow}
+                disabled={loading}
+                className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isFollowing
+                    ? 'bg-bg-secondary border border-border text-text-secondary hover:text-accent-pink'
+                    : 'bg-primary text-white hover:bg-primary-light'
+                }`}
+              >
+                {isMutual ? '互相关注' : isFollowing ? '已关注' : '关注'}
+              </button>
+              <button
+                onClick={handleDM}
+                className="px-6 py-2 rounded-lg text-sm font-medium bg-bg-secondary border border-border text-text-secondary hover:border-primary hover:text-primary transition-colors"
+              >
+                私信
+              </button>
+            </div>
           )}
 
           {isMe && (

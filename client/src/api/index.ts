@@ -82,6 +82,8 @@ export const bookmarksApi = {
 
 export const conversationsApi = {
   list: (userId: number) => request<import('../types').Conversation[]>(`/users/${userId}/conversations`),
+  create: (targetUserId: number) =>
+    request<{ conversation_id: number; created: boolean }>('/conversations', { method: 'POST', body: JSON.stringify({ target_user_id: targetUserId }) }),
   getMessages: (convId: number) =>
     request<{ conversation: import('../types').Conversation; members: import('../types').User[]; messages: import('../types').Message[] }>(`/conversations/${convId}/messages`),
   sendMessage: (convId: number, data: { content: string; msg_type?: string }) =>

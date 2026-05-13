@@ -467,6 +467,35 @@ router.get('/users/:id/conversations', (req: Request<{ id: string }>, res: Respo
   res.json(convWithMembers)
 })
 
+router.post('/conversations', requireAuth, (req: AuthRequest, res: Response) => {
+  const { target_user_id } = req.body as { target_user_id?: number }
+  if (!target_user_id) return res.status(400).json({ error: '参数缺失' })
+  if (target_user_id === req.userId) return res.status(400).json({ error: '不能和自己创建会话' })
+
+  const targetUser = db.prepare('SELECT id FROM users WHERE id = ?').get(target_user_id) as any
+  if (!targetUser) return res.status(404).json({ error: '用户不存在' })
+
+  // 查找是否已有两人之间的私聊会话
+  const existing = db.prepare(`
+    SELECT c.id FROM conversations c
+    WHERE c.type = 'private'
+      AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = ?)
+      AND EXISTS (SELECT 1 FROM conversation_members cm WHERE cm.conversation_id = c.id AND cm.user_id = ?)
+      AND (SELECT COUNT(*) FROM conversation_members cm WHERE cm.conversation_id = c.id) = 2
+    LIMIT 1
+  `).get(req.userId, target_user_id) as { id: number } | undefined
+
+  if (existing) {
+    return res.json({ conversation_id: existing.id, created: false })
+  }
+
+  const result = db.prepare('INSERT INTO conversations (type) VALUES (?)').run('private')
+  const convId = Number(result.lastInsertRowid)
+  db.prepare('INSERT INTO conversation_members (conversation_id, user_id) VALUES (?, ?)').run(convId, req.userId)
+  db.prepare('INSERT INTO conversation_members (conversation_id, user_id) VALUES (?, ?)').run(convId, target_user_id)
+  res.json({ conversation_id: convId, created: true })
+})
+
 router.get('/conversations/:id/messages', (req: Request<{ id: string }>, res: Response) => {
   const messages = db.prepare(`
     SELECT m.*, u.nickname as sender_name, u.avatar as sender_avatar
