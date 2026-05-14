@@ -66,6 +66,8 @@ export class VolcengineTextProvider implements TextProvider {
         success: true,
         title: parsed.title || '未命名作品',
         description: parsed.description || '',
+        hookDescription: parsed.hookDescription || '',
+        coverPrompt: parsed.coverPrompt || '',
         pages,
         usage,
       }

@@ -18,6 +18,8 @@ export interface TextBreakdownResult {
   success: boolean
   title: string
   description: string
+  hookDescription?: string
+  coverPrompt?: string
   pages: PageBreakdown[]
   error?: string
   usage?: { promptTokens: number; completionTokens: number }

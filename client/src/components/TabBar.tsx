@@ -26,7 +26,7 @@ export default function TabBar() {
   if (hideTabs) return null
 
   return (
-    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-bg-card border-t border-border flex z-40">
+    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-bg-card border-t border-border flex z-40 md:hidden">
       {tabs.map((tab) => (
         <button
           key={tab.page}

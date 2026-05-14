@@ -61,7 +61,7 @@ export default function Shelf() {
   }
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 md:pb-6">
       <div className="sticky top-0 z-10 bg-gradient-to-br from-bg to-bg-secondary px-4 pt-5 pb-3">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-accent to-primary-light bg-clip-text text-transparent">书架</h1>
       </div>

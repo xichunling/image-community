@@ -35,3 +35,9 @@ body {
   position: relative;
   overflow-x: hidden;
 }
+
+@media (min-width: 768px) {
+  #root {
+    max-width: 100%;
+  }
+}

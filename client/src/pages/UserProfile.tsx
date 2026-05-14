@@ -6,6 +6,7 @@ import { useUser } from '../contexts/UserContext'
 import BackHeader from '../components/BackHeader'
 import WorkCard from '../components/WorkCard'
 import FollowListModal from '../components/FollowListModal'
+import UserAvatar from '../components/UserAvatar'
 
 interface UserInfo {
   id: number
@@ -79,12 +80,12 @@ export default function UserProfile() {
   if (!userInfo) return <div className="p-4 text-text-secondary">加载中...</div>
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 md:pb-6 md:max-w-[700px] md:mx-auto">
       <BackHeader title={userInfo.nickname} />
       <div className="px-4 space-y-4">
         {/* 用户卡片 */}
         <div className="bg-bg-card rounded-2xl p-5 text-center">
-          <div className="text-4xl">{userInfo.avatar || '👤'}</div>
+          <div className="flex justify-center"><UserAvatar avatar={userInfo.avatar} nickname={userInfo.nickname} size="lg" /></div>
           <div className="text-lg font-bold mt-2">{userInfo.nickname}</div>
           <div className="text-xs text-text-secondary mt-1">{userInfo.bio}</div>
           <div className="text-[10px] text-text-secondary mt-1">@{userInfo.username}</div>

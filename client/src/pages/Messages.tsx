@@ -15,7 +15,7 @@ export default function Messages() {
   }, [user])
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 md:pb-6 md:max-w-[700px]">
       <div className="sticky top-0 z-10 bg-gradient-to-br from-bg to-bg-secondary px-4 pt-5 pb-3">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-accent to-primary-light bg-clip-text text-transparent">消息</h1>
       </div>
@@ -35,9 +35,9 @@ export default function Messages() {
             className="flex items-center gap-3 bg-bg-card rounded-xl p-3 cursor-pointer hover:scale-[1.01] transition-transform"
           >
             <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${
-              conv.type === 'private' ? 'bg-primary/20' : 'bg-accent/20'
+              conv.displayName === '系统通知' ? 'bg-accent/20' : conv.type === 'private' ? 'bg-primary/20' : 'bg-accent/20'
             }`}>
-              {conv.type === 'private' ? (conv.displayAvatar || '👤') : '👥'}
+              {conv.displayName === '系统通知' ? '🔔' : conv.type === 'private' ? (conv.displayAvatar || '👤') : '👥'}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate">

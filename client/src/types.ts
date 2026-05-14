@@ -18,6 +18,7 @@ export interface User {
 export interface Work {
   id: number
   title: string
+  subtitle?: string
   description: string
   cover_image: string
   type: 'comic' | 'drama' | 'novel'
@@ -35,6 +36,30 @@ export interface Work {
 export interface WorkDetail extends Work {
   contributors: Contributor[]
   parentWork: { id: number; title: string; creator_name: string } | null
+  allow_fork?: number
+  fork_from_page?: number | null
+  like_count?: number
+  liked?: boolean
+}
+
+export interface BranchWork {
+  id: number
+  title: string
+  description: string
+  cover_image: string
+  type: string
+  created_at: string
+  fork_from_page: number
+  creator_name: string
+  creator_avatar: string
+  page_count: number
+}
+
+export interface PageLikeInfo {
+  page_id: number
+  page_number: number
+  like_count: number
+  liked: boolean
 }
 
 export interface WorkPage {
@@ -64,6 +89,8 @@ export interface Comment {
   created_at: string
   nickname: string
   avatar: string
+  parent_id: number | null
+  reply_to_name: string | null
 }
 
 export interface Bookmark {

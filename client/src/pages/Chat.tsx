@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { conversationsApi } from '../api'
 import type { Message, User, Conversation } from '../types'
 import { useUser } from '../contexts/UserContext'
 import BackHeader from '../components/BackHeader'
+import UserAvatar from '../components/UserAvatar'
 
 export default function Chat() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { user } = useUser()
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [members, setMembers] = useState<User[]>([])
@@ -40,7 +42,7 @@ export default function Chat() {
     : conversation?.title ?? '群聊'
 
   return (
-    <div className="pb-0">
+    <div className="pb-0 md:max-w-[700px] md:mx-auto">
       <BackHeader title={title} />
 
       <div className="px-4 pb-16 min-h-[calc(100vh-60px)]">
@@ -52,10 +54,30 @@ export default function Chat() {
 
         <div className="space-y-3">
           {messages.map((msg) => {
+            if (msg.msg_type === 'system') {
+              let parsed: any = null
+              try { parsed = JSON.parse(msg.content) } catch {}
+              if (parsed?.type === 'comment_notify') {
+                return (
+                  <div key={msg.id} onClick={() => navigate(`/work/${parsed.workId}?comment=${parsed.commentId}`)} className="text-center cursor-pointer">
+                    <div className="inline-block bg-bg-secondary rounded-lg px-3 py-2 text-xs text-text-secondary hover:bg-primary/10 transition-colors">
+                      <span className="text-primary font-medium">{parsed.commenterName}</span> 评论了你的作品「{parsed.workTitle}」：{parsed.text}
+                    </div>
+                  </div>
+                )
+              }
+              return (
+                <div key={msg.id} className="text-center">
+                  <span className="text-[10px] text-text-secondary bg-bg-secondary px-2 py-1 rounded">{msg.content}</span>
+                </div>
+              )
+            }
             const isMine = msg.sender_id === user?.id
             return (
               <div key={msg.id} className={`flex gap-2 ${isMine ? 'flex-row-reverse' : ''}`}>
-                <div className="text-lg shrink-0">{msg.sender_avatar}</div>
+                <div className="shrink-0">
+                  <UserAvatar avatar={msg.sender_avatar} nickname={msg.sender_name} size="sm" />
+                </div>
                 <div className={`max-w-[70%] ${isMine ? 'text-right' : ''}`}>
                   <div className="text-[10px] text-text-secondary">{msg.sender_name}</div>
                   <div className={`inline-block mt-0.5 px-3 py-2 rounded-xl text-sm ${
@@ -72,7 +94,7 @@ export default function Chat() {
       </div>
 
       {/* Input bar */}
-      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] bg-bg-card border-t border-border flex gap-2 p-3 z-40">
+      <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] md:max-w-[700px] bg-bg-card border-t border-border flex gap-2 p-3 z-40">
         <input
           className="flex-1 bg-bg-secondary border border-border rounded-full px-4 py-2 text-sm text-text placeholder:text-text-secondary focus:outline-none focus:border-primary"
           placeholder="输入消息..."

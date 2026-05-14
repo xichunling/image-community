@@ -22,6 +22,9 @@ export default function Create() {
   const [desc, setDesc] = useState('')
   const [type, setType] = useState<'comic' | 'drama' | 'novel'>('comic')
   const [pages, setPages] = useState<PageInput[]>([{ description: '', dialogue: '' }])
+  const [coverImage, setCoverImage] = useState('')
+  const [coverUploading, setCoverUploading] = useState(false)
+  const [allowFork, setAllowFork] = useState(true)
 
   // AI fields
   const [aiType, setAiType] = useState<'comic' | 'drama' | 'novel'>('comic')
@@ -101,7 +104,10 @@ export default function Create() {
   const submitManual = async () => {
     if (!title.trim()) return alert('请输入标题')
     if (!pages[0]?.description.trim()) return alert('请至少填写第一页场景描述')
-    await worksApi.create({ title: title.trim(), description: desc.trim(), type, pages })
+    if (!coverImage) {
+      if (!confirm('生成或上传封面图可以更好地吸引读者，确定不添加封面直接发布吗？')) return
+    }
+    await worksApi.create({ title: title.trim(), description: desc.trim(), type, pages, cover_image: coverImage || undefined, allow_fork: allowFork ? 1 : 0 })
     navigate('/')
   }
 
@@ -189,7 +195,7 @@ export default function Create() {
   }
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 md:pb-6 md:max-w-[700px] md:mx-auto">
       <div className="sticky top-0 z-10 bg-gradient-to-br from-bg to-bg-secondary px-4 pt-5 pb-3">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-accent to-primary-light bg-clip-text text-transparent">创作</h1>
       </div>
@@ -229,9 +235,9 @@ export default function Create() {
             </div>
             <div>
               <label className="text-xs text-text-secondary">作品类型</label>
-              <select className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary" value={type} onChange={(e) => setType(e.target.value as 'comic' | 'drama' | 'novel')}>
+              <select className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary" value={type} onChange={(e) => { if (e.target.value !== 'drama') setType(e.target.value as 'comic' | 'drama' | 'novel') }}>
                 <option value="comic">漫画</option>
-                <option value="drama">短剧</option>
+                <option value="drama" disabled>短剧（敬请期待）</option>
                 <option value="novel">小说</option>
               </select>
             </div>
@@ -268,6 +274,41 @@ export default function Create() {
             ) : (
               <PagesEditor pages={pages} onChange={setPages} showUpload onUploadPage={handleUpload} />
             )}
+            <div>
+              <label className="text-xs text-text-secondary">封面图片（可选）</label>
+              {coverImage ? (
+                <div className="mt-1 relative">
+                  <img src={coverImage} className="w-full h-32 object-cover rounded-lg" />
+                  <button onClick={() => setCoverImage('')} className="absolute top-1 right-1 w-5 h-5 bg-black/50 rounded-full text-white text-xs flex items-center justify-center">x</button>
+                </div>
+              ) : (
+                <label className="mt-1 flex items-center justify-center h-20 bg-bg-card border border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors">
+                  <span className="text-xs text-text-secondary">{coverUploading ? '上传中...' : '点击上传封面'}</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                    const file = e.target.files?.[0]
+                    if (!file) return
+                    setCoverUploading(true)
+                    try {
+                      const res = await uploadApi.image(file)
+                      setCoverImage(res.url)
+                    } catch { alert('上传失败') }
+                    finally { setCoverUploading(false) }
+                  }} />
+                </label>
+              )}
+            </div>
+            <div className="flex items-center justify-between bg-bg-card border border-border rounded-lg px-3 py-2.5">
+              <div>
+                <div className="text-sm">允许共创</div>
+                <div className="text-[10px] text-text-secondary">其他用户可以从任意分页分叉续写</div>
+              </div>
+              <button
+                onClick={() => setAllowFork(!allowFork)}
+                className={`w-10 h-5.5 rounded-full transition-colors relative ${allowFork ? 'bg-primary' : 'bg-border'}`}
+              >
+                <div className={`absolute top-0.5 w-4.5 h-4.5 bg-white rounded-full shadow transition-transform ${allowFork ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
             <button onClick={submitManual} className="w-full py-3 bg-primary rounded-lg text-sm text-white font-medium hover:bg-primary-light transition-colors">发布作品</button>
           </>
         ) : aiGenerating ? (
@@ -378,9 +419,9 @@ export default function Create() {
 
             <div>
               <label className="text-xs text-text-secondary">作品类型</label>
-              <select className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary" value={aiType} onChange={(e) => setAiType(e.target.value as 'comic' | 'drama' | 'novel')}>
+              <select className="w-full mt-1 bg-bg-card border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-primary" value={aiType} onChange={(e) => { if (e.target.value !== 'drama') setAiType(e.target.value as 'comic' | 'drama' | 'novel') }}>
                 <option value="comic">漫画</option>
-                <option value="drama">短剧</option>
+                <option value="drama" disabled>短剧（敬请期待）</option>
                 <option value="novel">小说</option>
               </select>
             </div>

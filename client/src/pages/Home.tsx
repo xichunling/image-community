@@ -51,7 +51,7 @@ export default function Home() {
   }
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 md:pb-6">
       <div className="sticky top-0 z-10 bg-gradient-to-br from-bg to-bg-secondary px-4 pt-5 pb-3">
         <h1 className="text-2xl font-bold bg-gradient-to-r from-accent to-primary-light bg-clip-text text-transparent">
           发现
@@ -99,7 +99,7 @@ export default function Home() {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 px-4 mt-2">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 px-4 mt-2">
         {works.map((work, i) => (
           <WorkCard key={work.id} work={work} index={i} onClick={() => navigate(`/work/${work.id}`)} />
         ))}

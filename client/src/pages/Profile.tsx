@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usersApi, creditsApi, tasksApi, followsApi } from '../api'
 import type { Work } from '../types'
 import { useUser } from '../contexts/UserContext'
 import FollowListModal from '../components/FollowListModal'
+import UserAvatar from '../components/UserAvatar'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -20,6 +21,7 @@ export default function Profile() {
   const [followerCount, setFollowerCount] = useState(0)
   const [followingCount, setFollowingCount] = useState(0)
   const [showFollowList, setShowFollowList] = useState<'followers' | 'following' | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!user) return
@@ -62,7 +64,7 @@ export default function Profile() {
   // 未登录：显示登录引导
   if (!user) {
     return (
-      <div className="pb-20">
+      <div className="pb-20 md:pb-6 md:max-w-[700px] md:mx-auto">
         <div className="px-4 pt-5">
           <div className="bg-bg-card rounded-2xl p-8 text-center">
             <div className="text-5xl mb-4">👤</div>
@@ -81,21 +83,38 @@ export default function Profile() {
   }
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 md:pb-6 md:max-w-[700px] md:mx-auto">
       <div className="px-4 pt-5 pb-3">
         <div className="bg-bg-card rounded-2xl p-5 text-center">
-          <div className="text-4xl">{user.avatar || '👤'}</div>
+          <div className="flex justify-center">
+            <div className="relative cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
+              <UserAvatar avatar={user.avatar} nickname={user.nickname} size="lg" />
+              <span className="absolute bottom-0 right-0 w-5 h-5 bg-primary rounded-full flex items-center justify-center text-white text-[10px]">+</span>
+            </div>
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              try {
+                const res = await usersApi.uploadAvatar(file)
+                window.location.reload()
+              } catch (err: any) { alert(err.message || '上传失败') }
+            }} />
+          </div>
           <div className="text-lg font-bold mt-2">{user.nickname}</div>
           <div className="text-xs text-text-secondary mt-1">{user.bio}</div>
           <div className="text-[10px] text-text-secondary mt-1">@{user.username}</div>
           <div className="flex justify-center gap-6 mt-4">
             <div className="text-center">
               <div className="text-xl font-bold">{works.length}</div>
-              <div className="text-[10px] text-text-secondary">我的作品</div>
+              <div className="text-[10px] text-text-secondary">作品</div>
             </div>
-            <div className="text-center">
-              <div className="text-xl font-bold">{coCreated.length}</div>
-              <div className="text-[10px] text-text-secondary">参与共创</div>
+            <div className="text-center cursor-pointer" onClick={() => navigate(`/user/${user.id}/followers`)}>
+              <div className="text-xl font-bold">{followerCount}</div>
+              <div className="text-[10px] text-text-secondary">粉丝</div>
+            </div>
+            <div className="text-center cursor-pointer" onClick={() => navigate(`/user/${user.id}/following`)}>
+              <div className="text-xl font-bold">{followingCount}</div>
+              <div className="text-[10px] text-text-secondary">关注</div>
             </div>
             <button
               className="text-center hover:opacity-80 transition-opacity"
@@ -150,7 +169,7 @@ export default function Profile() {
         <div className="px-4 space-y-2">
           <h3 className="text-sm font-semibold">创作任务</h3>
           {tasks.map((t) => (
-            <div key={t.id} onClick={() => t.status === 'completed' && navigate(`/task/${t.id}`)} className={`flex items-center justify-between bg-bg-card rounded-lg p-3 ${t.status === 'completed' ? 'cursor-pointer hover:scale-[1.01] transition-transform' : ''}`}>
+            <div key={t.id} onClick={() => navigate(`/task/${t.id}`)} className="flex items-center justify-between bg-bg-card rounded-lg p-3 cursor-pointer hover:scale-[1.01] transition-transform">
               <div className="flex items-center gap-2">
                 <span className="text-lg">{t.type === 'comic' ? '📖' : t.type === 'novel' ? '📝' : '🎬'}</span>
                 <div>
@@ -161,9 +180,10 @@ export default function Profile() {
               <span className={`text-xs px-2 py-0.5 rounded-full ${
                 t.status === 'generating' ? 'bg-primary/20 text-primary-light animate-pulse' :
                 t.status === 'completed' ? 'bg-success/20 text-success' :
+                t.status === 'cancelled' ? 'bg-text-secondary/20 text-text-secondary' :
                 'bg-accent-pink/20 text-accent-pink'
               }`}>
-                {t.status === 'generating' ? '生成中...' : t.status === 'completed' ? '待发布' : '失败'}
+                {t.status === 'generating' ? '生成中...' : t.status === 'completed' ? '待发布' : t.status === 'cancelled' ? '已取消' : '失败'}
               </span>
             </div>
           ))}
